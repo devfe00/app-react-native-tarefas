@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import { 
   View, 
@@ -15,29 +16,29 @@ const AdicionarTarefaScreen = ({ navigation }) => {
   const [titulo, setTitulo] = useState('');
   const [dataConclusao, setDataConclusao] = useState('');
   
-  // Valida o formato da data (DD/MM/AAAA)
+  // Valida DD/MM/AAAA)
   const validarFormatoData = (data) => {
     const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
     if (!regex.test(data)) return false;
     
     const [, dia, mes, ano] = data.match(regex);
-    // Verifica se o mês está entre 1 e 12
+
     if (parseInt(mes) < 1 || parseInt(mes) > 12) return false;
     
-    // Verifica se o dia é válido para o mês
+
     const diasNoMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
     if (parseInt(dia) < 1 || parseInt(dia) > diasNoMes) return false;
     
     return true;
   };
   
-  // Verifica se a data está no futuro
+  
   const validarDataFutura = (data) => {
     if (!validarFormatoData(data)) return false;
     
     const [dia, mes, ano] = data.split('/').map(num => parseInt(num, 10));
     const dataTarefa = new Date(ano, mes - 1, dia);
-    dataTarefa.setHours(0, 0, 0, 0); // Zera as horas para comparar apenas as datas
+    dataTarefa.setHours(0, 0, 0, 0); 
     
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -45,23 +46,23 @@ const AdicionarTarefaScreen = ({ navigation }) => {
     return dataTarefa >= hoje;
   };
   
-  // Formata a entrada de data conforme o usuário digita
+
   const formatarDataInput = (texto) => {
     // Remove todos os caracteres que não são dígitos
     const digitos = texto.replace(/\D/g, '');
     
-    // Formata conforme o padrão DD/MM/AAAA
+    // padrão DD/MM/AAAA
     let dataFormatada = '';
     if (digitos.length > 0) {
-      // Adiciona o dia
+      
       dataFormatada = digitos.substring(0, Math.min(2, digitos.length));
       
-      // Adiciona o mês
+     
       if (digitos.length > 2) {
         dataFormatada += '/' + digitos.substring(2, Math.min(4, digitos.length));
       }
       
-      // Adiciona o ano
+   
       if (digitos.length > 4) {
         dataFormatada += '/' + digitos.substring(4, Math.min(8, digitos.length));
       }
@@ -70,7 +71,7 @@ const AdicionarTarefaScreen = ({ navigation }) => {
     setDataConclusao(dataFormatada);
   };
   
-  const adicionarTarefa = () => {
+  const adicionarTarefa = async () => {
     // Valida os campos
     if (!titulo.trim()) {
       Alert.alert('Erro', 'Por favor, digite um título para a tarefa.');
@@ -92,15 +93,30 @@ const AdicionarTarefaScreen = ({ navigation }) => {
       return;
     }
     
-    // Se passou por todas as validações, cria a nova tarefa
+
     const novaTarefa = {
       titulo,
       dataConclusao,
       concluida: false,
     };
     
-    // Retorna para a tela anterior com a nova tarefa
-    navigation.navigate('ListaTarefas', { tarefa: novaTarefa });
+    try {
+
+        const tarefasSalvas = await AsyncStorage.getItem('tarefas');
+      const tarefas = tarefasSalvas ? JSON.parse(tarefasSalvas) : [];
+
+
+      tarefas.push(novaTarefa);
+
+
+      await AsyncStorage.setItem('tarefas', JSON.stringify(tarefas));
+      
+
+      navigation.navigate('ListaTarefas', { tarefa: novaTarefa });
+    } catch (error) {
+      console.error('Erro ao salvar tarefa no AsyncStorage', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao salvar a tarefa.');
+    }
   };
   
   return (

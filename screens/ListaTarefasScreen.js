@@ -1,30 +1,52 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 
 const ListaTarefasScreen = ({ route, navigation }) => {
   const [tarefas, setTarefas] = useState([]);
 
-  // Atualiza a lista sempre que uma nova tarefa for adicionada
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: 'Lista Tarefa', // Espaço
+    });
+  }, [navigation]);
+  
+
+  const carregarTarefas = async () => {
+    try {
+      const tarefasSalvas = await AsyncStorage.getItem('tarefas');
+      if (tarefasSalvas) {
+        setTarefas(JSON.parse(tarefasSalvas));
+      }
+    } catch (error) {
+      console.error("Erro ao carregar tarefas do AsyncStorage", error);
+    }
+  };
+
   useEffect(() => {
+    carregarTarefas();
     if (route.params?.tarefa) {
-      // Verifica se a data da tarefa é válida antes de adicionar
+      
       if (validarData(route.params.tarefa.dataConclusao)) {
-        setTarefas((prevTarefas) => [...prevTarefas, route.params.tarefa]);
+        setTarefas((prevTarefas) => {
+          const novasTarefas = [...prevTarefas, route.params.tarefa];
+          AsyncStorage.setItem('tarefas', JSON.stringify(novasTarefas)); 
+          return novasTarefas;
+        });
       } else {
         Alert.alert("Erro", "Data de conclusão não pode ser no passado");
-        // Não adiciona a tarefa se a data for inválida
-      }
+     
+        }
     }
   }, [route.params?.tarefa]);
 
-  // Função para validar se a data está no futuro
+
   const validarData = (dataString) => {
     try {
       const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0); // Zera as horas para comparar apenas as datas
+      hoje.setHours(0, 0, 0, 0); 
       
       const [dia, mes, ano] = dataString.split('/').map(num => parseInt(num, 10));
-      // Mês em JavaScript é baseado em zero (0-11)
       const dataTarefa = new Date(ano, mes - 1, dia);
       
       return dataTarefa >= hoje;
@@ -34,37 +56,44 @@ const ListaTarefasScreen = ({ route, navigation }) => {
     }
   };
 
-  // Função para converter string de data para objeto Date
+
   const converterStringParaData = (dataString) => {
     try {
       const [dia, mes, ano] = dataString.split('/').map(num => parseInt(num, 10));
-      // Mês em JavaScript é baseado em zero (0-11)
+   
       return new Date(ano, mes - 1, dia);
     } catch (error) {
       console.error("Erro ao converter data:", error);
-      return new Date(); // Retorna data atual em caso de erro
+      return new Date();
     }
   };
 
-  // Alterna o status da tarefa (Concluída <-> Pendente)
+
   const marcarComoConcluida = (index) => {
     setTarefas((prevTarefas) => {
-      const novasTarefas = [...prevTarefas];
-      novasTarefas[index].concluida = !novasTarefas[index].concluida;
+      const novasTarefas = prevTarefas.map((tarefa, i) => {
+        if (i === index) {
+          return { ...tarefa, concluida: !tarefa.concluida };
+        }
+        return tarefa;
+      });
+      AsyncStorage.setItem('tarefas', JSON.stringify(novasTarefas)); 
       return novasTarefas;
     });
   };
 
   // Remove uma tarefa da lista
-  const removerTarefa = (index) => {
-    setTarefas((prevTarefas) => {
-      const novasTarefas = [...prevTarefas];
-      novasTarefas.splice(index, 1);
-      return novasTarefas;
-    });
+  const removerTarefa = async (index) => {
+    try {
+      const tarefasAtualizadas = tarefas.filter((_, i) => i !== index);
+      setTarefas(tarefasAtualizadas);
+      await AsyncStorage.setItem('tarefas', JSON.stringify(tarefasAtualizadas));
+    } catch (error) {
+      console.error("Erro ao remover tarefa:", error);
+    }
   };
 
-  // Ordena as tarefas pela data de conclusão
+
   const tarefasOrdenadas = [...tarefas].sort((a, b) => {
     const dataA = converterStringParaData(a.dataConclusao);
     const dataB = converterStringParaData(b.dataConclusao);
@@ -72,13 +101,13 @@ const ListaTarefasScreen = ({ route, navigation }) => {
     return dataA - dataB;
   });
 
-  // Formata a data para exibição no formato brasileiro
+
   const formatarData = (dataString) => {
     try {
       const [dia, mes, ano] = dataString.split('/');
       return `${dia.padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`;
     } catch (error) {
-      return dataString; // Retorna a string original em caso de erro
+      return dataString;
     }
   };
 
@@ -216,15 +245,16 @@ const styles = StyleSheet.create({
   botaoAdicionar: {
     backgroundColor: '#007bff',
     padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
+    borderRadius: 5,
+    marginTop: 20,
   },
   botaoAdicionarTexto: {
     color: '#fff',
+    fontSize: 18,
     textAlign: 'center',
     fontWeight: 'bold',
-    fontSize: 16,
-  },
+    
+    },
 });
 
 export default ListaTarefasScreen;
